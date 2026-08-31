@@ -1,0 +1,328 @@
+<!--Toast-->
+@if (toast.show) {
+  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999">
+    <div class="toast show text-white" [ngClass]="toast.typeClass">
+      <div class="d-flex">
+        <div class="toast-body">
+          {{ toast.message }}
+        </div>
+
+        <button class="btn-close btn-close-white me-2 m-auto" (click)="toast.show = false"></button>
+      </div>
+    </div>
+  </div>
+}
+
+<!--CRUD-->
+<div class="container mt-4">
+  <h3 class="text-center mb-4">Administración de Insumos</h3>
+
+  <div class="row mb-3">
+    <div class="col-md-6 mx-auto">
+      <input
+        type="text"
+        class="form-control"
+        placeholder="Buscar insumo..."
+        [value]="search"
+        (input)="search = $event.target.value"
+      />
+    </div>
+  </div>
+
+  @if (currentUser()?.role == 1) {
+    <div class="d-flex justify-content-end">
+      <button class="btn btn-success" (click)="openModal(null)">
+        <i class="fa-solid fa-plus"></i>
+      </button>
+    </div>
+  }
+  <p>Total insumos: {{ supplies.length }}</p>
+  <div class="row g-4 mb-5">
+    @for (supply of supplies; track supply.supply_id) {
+      @if (
+        search === '' ||
+        supply.supply_id.toString().includes(search) ||
+        supply.name.toLowerCase().includes(search.toLowerCase())
+      ) {
+        <div class="col-md-4 col-lg-3">
+          <div class="card h-100 shadow-sm">
+            <img
+              *ngIf="imageUrls[supply.image]"
+              [src]="imageUrls[supply.image]"
+              class="card-img-top"
+              alt="{{ supply.name }}"
+              style="height: 220px; object-fit: cover"
+            />
+
+            <div class="card-body">
+              <h5 class="card-title">{{ supply.name }}</h5>
+
+              <p class="card-text text-muted">ID: {{ supply.supply_id }}</p>
+            </div>
+
+            <div class="card-footer border-0">
+              <div class="d-grid gap-2">
+                <button class="btn btn-primary" (click)="openDetailsModal(supply)">
+                  <i class="fa-solid fa-eye me-2"></i>
+                  Ver detalles
+                </button>
+                @if (currentUser()?.role == 1) {
+                  <div class="d-flex justify-content-center gap-2">
+                    <button class="btn btn-warning" (click)="openModal(supply)">
+                      <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+
+                    <button class="btn btn-danger" (click)="openDeleteModal(supply)">
+                      <i class="fa-solid fa-trash text-white"></i>
+                    </button>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    }
+  </div>
+</div>
+
+<!-- Modal Update y Create -->
+<div class="modal fade show d-block" *ngIf="isModalOpen">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <form #supplyForm="ngForm" (ngSubmit)="saveSupply()">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            {{ selectedSupply?.supply_id ? 'Editar Insumo' : 'Nuevo Insumo' }}
+          </h5>
+
+          <button type="button" class="btn-close" (click)="closeModal()"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Nombre</label>
+              <input
+                type="text"
+                class="form-control"
+                name="name"
+                required
+                #name="ngModel"
+                pattern="^(?=.*[a-z])(?=.*[A-Z]).{3,}$"
+                [(ngModel)]="selectedSupply.name"
+              />
+              @if (!name.valid && name.touched) {
+                <small class="invalid-feedback d-block"> Formato invalido! </small>
+              }
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Tipo</label>
+
+              <select
+                class="form-select"
+                name="type"
+                required
+                [(ngModel)]="selectedSupply.type"
+                #type="ngModel"
+              >
+                <option [ngValue]="null" disabled hidden>Seleccione un tipo de insumo</option>
+                <option [ngValue]="'gastronomico'">Gastronomico</option>
+                <option [ngValue]="'fisico'">Fisico</option>
+              </select>
+              @if (!type.valid && type.touched) {
+                <small class="invalid-feedback d-block">
+                  Debes seleccionar un tipo de insumo.
+                </small>
+              }
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Categoría</label>
+              <select
+                class="form-select"
+                name="category"
+                required
+                [(ngModel)]="selectedSupply.category_id"
+                #category="ngModel"
+              >
+                <option [ngValue]="null" disabled hidden>Seleccione una categoría</option>
+
+                <option *ngFor="let c of categories" [ngValue]="c.category_id">
+                  {{ c.name }}
+                </option>
+              </select>
+
+              @if (!category.valid && category.touched) {
+                <small class="invalid-feedback d-block"> Debes seleccionar una categoría </small>
+              }
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Cantidad</label>
+              <input
+                type="number"
+                class="form-control"
+                name="quantity"
+                required
+                #quantity="ngModel"
+                [(ngModel)]="selectedSupply.stock"
+              />
+              @if (!quantity.valid && quantity.touched) {
+                <small class="invalid-feedback d-block"> La cantidad no puede quedar vacío. </small>
+              }
+            </div>
+            <div class="mb-3" *ngIf="selectedSupply?.image">
+              <label class="form-label d-block">Imagen actual</label>
+              <img
+                [src]="imageUrls[selectedSupply.image]"
+                class="img-thumbnail"
+                style="max-height: 180px"
+              />
+            </div>
+            <div class="mb-3">
+              @if (selectedSupply.supply_id) {
+                <label class="form-label">Cambiar imagen (opcional)</label>
+                <input
+                  type="file"
+                  class="form-control"
+                  name="image"
+                  (change)="onFileSelected($event)"
+                  accept="image/*"
+                />
+              } @else {
+                <label class="form-label">Imagen</label>
+                <input
+                  type="file"
+                  class="form-control"
+                  name="image"
+                  (change)="onFileSelected($event)"
+                  accept="image/*"
+                  required
+                  [class.is-invalid]="imageTouched && !selectedFile"
+                />
+                @if (imageTouched || !selectedFile) {
+                  <small class="invalid-feedback d-block"> La imagen no puede quedar vacía. </small>
+                }
+              }
+            </div>
+
+            <div class="col-md-12 mb-3">
+              <label class="form-label">Precio</label>
+              <input
+                type="number"
+                class="form-control"
+                name="price"
+                required
+                #price="ngModel"
+                [(ngModel)]="selectedSupply.price"
+              />
+              @if (!price.valid && price.touched) {
+                <small class="invalid-feedback d-block"> La cantidad no puede quedar vacío. </small>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancelar</button>
+
+          @if (selectedSupply?.supply_id) {
+            <button type="submit" class="btn btn-primary" [disabled]="supplyForm.invalid">
+              Editar
+            </button>
+          } @else {
+            <button type="submit" class="btn btn-primary" [disabled]="supplyForm.invalid">
+              Guardar
+            </button>
+          }
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop fade show" *ngIf="isModalOpen"></div>
+
+<!--Modal Delete-->
+@if (isDeleteModalOpen) {
+  <div class="modal fade show d-block">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title">Confirmar eliminación</h5>
+          <button class="btn-close btn-close-white" (click)="closeDeleteModal()"></button>
+        </div>
+
+        <div class="modal-body">
+          <p>
+            ¿Seguro que quieres eliminar el insumo
+            <strong>{{ supplyToDelete?.name }}</strong
+            >?
+          </p>
+          <p class="text-danger mb-0">Esta acción no se puede deshacer.</p>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeDeleteModal()">Cancelar</button>
+
+          <button
+            class="btn btn-danger"
+            (click)="confirmDelete(supplyToDelete.supply_id, supplyToDelete.image)"
+          >
+            Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop fade show"></div>
+}
+
+<!--Modal Details-->
+@if (isDetailsModalOpen) {
+  <div class="modal fade show d-block">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Detalles del Insumo</h5>
+          <button class="btn-close" (click)="closeDetailsModal()"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-5 text-center mb-3">
+              <img
+                *ngIf="imageUrls[supplyDetails?.image]"
+                [src]="imageUrls[supplyDetails?.image]"
+                class="img-fluid rounded shadow-sm"
+                style="max-height: 250px; object-fit: cover"
+              />
+            </div>
+
+            <div class="col-md-7">
+              <h4 class="mb-3">{{ supplyDetails?.name }}</h4>
+
+              <p><strong>ID:</strong> {{ supplyDetails?.supply_id }}</p>
+              @if (supplyDetails?.type === 'physical') {
+                <p><strong>Tipo:</strong> Fisico</p>
+              } @else {
+                <p><strong>Tipo:</strong> Gastronomico</p>
+              }
+
+              <p><strong>Categoría:</strong> {{ supplyDetails?.category.name }}</p>
+              <p><strong>Cantidad:</strong> {{ supplyDetails?.stock }}</p>
+              <p><strong>Precio:</strong> {{ supplyDetails?.price }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" (click)="closeDetailsModal()">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop fade show"></div>
+}
