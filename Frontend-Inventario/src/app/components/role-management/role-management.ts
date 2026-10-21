@@ -29,8 +29,7 @@ export class RoleManagement {
   constructor(
     private _roleService: RoleService,
     private cdr: ChangeDetectorRef,
-  ) {
-  }
+  ) {}
   public search: string = '';
   public currentUser: any;
 
@@ -55,8 +54,7 @@ export class RoleManagement {
         this.roles = response;
         this.cdr.detectChanges();
       },
-      error: (err) => {
-      },
+      error: (err) => {},
     });
   }
 
@@ -68,12 +66,16 @@ export class RoleManagement {
         this.showToast('Rol creado correctamente', 'success');
       },
       error: (err) => {
-        this.showToast('Error al crear rol', 'danger');
+        console.log('ERROR COMPLETO:', err);
+        console.log('STATUS:', err.status);
+        console.log('ERROR DEL BACKEND:', err.error);
+
+        this.showToast(err.error?.error || 'Error al crear rol', 'danger');
       },
     });
   }
 
-  updateRole(role:any) {
+  updateRole(role: any) {
     this._roleService.updateRole(role).subscribe({
       next: (response: any) => {
         this.getRoles();
@@ -86,7 +88,7 @@ export class RoleManagement {
     });
   }
 
-  confirmDelete(role_id:number) {
+  confirmDelete(role_id: number) {
     this._roleService.deleteRole(role_id).subscribe({
       next: (response: any) => {
         this.getRoles();
